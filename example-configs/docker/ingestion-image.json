@@ -8,9 +8,10 @@
     "enumerator": {
       "factory": "FileSystemEnumerator",
       "parameters": {
-        "path": "../example/demo-images/",
+        "path": "C:/vitrivr/vitrivr-engine/example/demo-images",
         "depth": "3",
-        "mediaTypes": "IMAGE"
+        "mediaTypes": "IMAGE",
+        "limit": "1"
       }
     },
     "decoder": {
@@ -30,7 +31,15 @@
     },
     "source": {
       "field": "file"
-    }
+    },
+     "tags": {
+       "field": "tags",
+       "parameters": {
+       "classes": "portrait,painting,artwork,sculpture,woman,man,child,animal,horse,building,landscape,indoor,outdoor,frame,music,instrument",
+       "top_k": "5",
+       "threshold": "0.0"
+  }
+   }
   },
   "operations": {
     "enumerator": {
@@ -58,8 +67,12 @@
     },
     "source": {
       "operator": "source",
-      "inputs": ["averagecolor"]
-    }
+      "inputs": ["tags"]
+    },
+    "tags": {
+     "operator": "tags",
+     "inputs": ["averagecolor"]
+}
   },
   "output": [
     "source"

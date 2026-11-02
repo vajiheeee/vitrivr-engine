@@ -24,6 +24,13 @@
             "host": "http://localhost:8888"
           }
         },
+        "tags": {
+         "factory": "ImageClassification",
+          "parameters": {
+          "host": "http://localhost:5000",
+          "model": "open_clip_vit_b32"
+          }
+       },
         "dino": {
           "factory": "DINO",
           "parameters": {
