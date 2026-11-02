@@ -1,0 +1,81 @@
+{
+  "schema": "example",
+  "context": {
+    "contentFactory": "InMemoryContentFactory",
+    "resolvers": ["disk"]
+  },
+  "operators": {
+    "enumerator": {
+      "factory": "FileSystemEnumerator",
+      "parameters": {
+        "path": "C:/vitrivr/vitrivr-engine/example/demo-images",
+        "depth": "3",
+        "mediaTypes": "IMAGE",
+        "limit": "1"
+      }
+    },
+    "decoder": {
+      "factory": "ImageDecoder"
+    },
+    "aggregator": {
+      "factory": "MiddleContentAggregator"
+    },
+    "persister": {
+      "factory": "PersistRetrievableTransformer"
+    },
+    "thumbnail": {
+      "exporter": "thumbnail"
+    },
+    "averagecolor": {
+      "field": "averagecolor"
+    },
+    "source": {
+      "field": "file"
+    },
+     "tags": {
+       "field": "tags",
+       "parameters": {
+       "classes": "portrait,painting,artwork,sculpture,woman,man,child,animal,horse,building,landscape,indoor,outdoor,frame,music,instrument",
+       "top_k": "5",
+       "threshold": "0.0"
+  }
+   }
+  },
+  "operations": {
+    "enumerator": {
+      "operator": "enumerator"
+    },
+    "decoder": {
+      "operator": "decoder",
+      "inputs": ["enumerator"]
+    },
+    "middle": {
+      "operator": "aggregator",
+      "inputs": ["decoder"]
+    },
+    "persist": {
+      "operator": "persister",
+      "inputs": ["middle"]
+    },
+    "thumbnail": {
+      "operator": "thumbnail",
+      "inputs": ["persist"]
+    },
+    "averagecolor": {
+      "operator": "averagecolor",
+      "inputs": ["thumbnail"]
+    },
+    "source": {
+      "operator": "source",
+      "inputs": ["tags"]
+    },
+    "tags": {
+     "operator": "tags",
+     "inputs": ["averagecolor"]
+}
+  },
+  "output": [
+    "source"
+  ],
+  "mergeType": "MERGE"
+}
