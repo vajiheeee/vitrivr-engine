@@ -16,7 +16,10 @@ git switch team/image
 git pull --ff-only origin team/image
 
 Section "Start dedicated BLIP2 FES"
-docker rm -f fes-blip2 2>$null | Out-Null
+$existingBlip2 = docker ps -a --format "{{.Names}}" | Where-Object { $_ -eq "fes-blip2" }
+if ($existingBlip2) {
+    docker rm -f fes-blip2 | Out-Null
+}
 docker volume create fes-blip2-cache | Out-Null
 docker pull faberf/featureextractionserver:blip2-latest
 if ($LASTEXITCODE -ne 0) {
