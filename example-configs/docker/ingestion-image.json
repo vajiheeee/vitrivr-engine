@@ -43,10 +43,11 @@
         "candidate_limit": "12",
         "top_k": "5",
         "threshold": "0.0",
-        "timeoutMs": "300000",
+        "timeoutMs": "900000",
         "pollingIntervalMs": "1000",
-        "retries": "2",
-        "caption_prompts": "<empty>"
+        "retries": "0",
+        "caption_prompts": "Describe the image briefly:",
+        "caption_fallback_host": "http://localhost:5001"
       }
     }
   },
