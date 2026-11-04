@@ -82,7 +82,8 @@ class ImageClassificationExtractor : FesExtractor<ImageContent, LabelDescriptor>
         "that", "these", "those", "it", "its", "as", "there", "has", "have", "had",
         "image", "picture", "photo", "photograph", "scene", "show", "shows", "showing",
         "depict", "depicts", "depicted", "visible", "main", "object", "objects", "answer",
-        "question", "list", "near", "next", "beside", "background", "foreground"
+        "question", "what", "who", "where", "when", "why", "how", "list", "near", "next",
+        "beside", "background", "foreground"
     )
 
     override fun extract(batch: List<Retrievable>): List<List<LabelDescriptor>> {
@@ -144,18 +145,44 @@ class ImageClassificationExtractor : FesExtractor<ImageContent, LabelDescriptor>
 
         logger.info { "Captioning candidate response: $response" }
 
+        val generatedOnly = stripPromptEcho(response, prompt)
+        logger.info { "Captioning response after prompt removal: $generatedOnly" }
+
         val limit = this.context[this.name, CANDIDATE_LIMIT_PARAMETER_NAME]
             ?.toIntOrNull()
             ?.takeIf { it > 0 }
             ?: CANDIDATE_LIMIT_PARAMETER_DEFAULT
 
-        val candidates = parseCandidateTags(response).take(limit)
+        val candidates = parseCandidateTags(generatedOnly).take(limit)
 
         if (candidates.isEmpty()) {
             throw IllegalStateException("Could not derive candidate tags from captioning response: $response")
         }
 
         return candidates
+    }
+
+    /**
+     * Removes a conditional-captioning prompt when the model echoes it in the
+     * decoded output. BLIP commonly returns the prompt together with the
+     * generated continuation.
+     */
+    private fun stripPromptEcho(response: String, prompt: String): String {
+        val trimmedResponse = response.trim()
+        val trimmedPrompt = prompt.trim()
+
+        if (trimmedResponse.startsWith(trimmedPrompt, ignoreCase = true)) {
+            return trimmedResponse.substring(trimmedPrompt.length)
+                .trim()
+                .trimStart(':', '-', ',', '.', ' ')
+        }
+
+        val answerMarker = Regex("""(?i)\banswer\s*:\s*""").find(trimmedResponse)
+        if (answerMarker != null) {
+            return trimmedResponse.substring(answerMarker.range.last + 1).trim()
+        }
+
+        return trimmedResponse
     }
 
     /**
