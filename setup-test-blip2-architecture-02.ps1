@@ -47,5 +47,11 @@ if (-not $ready) {
     throw "Dedicated BLIP2 FES did not become ready."
 }
 
+Section "Build current engine"
+.\gradlew.bat :vitrivr-engine-server:installDist --rerun-tasks
+if ($LASTEXITCODE -ne 0) {
+    throw "Engine build failed."
+}
+
 Section "Run architecture_02 test"
 powershell -ExecutionPolicy Bypass -File .\test-architecture-02.ps1
