@@ -45,7 +45,7 @@
         "threshold": "0.0",
         "timeoutMs": "900000",
         "pollingIntervalMs": "1000",
-        "retries": "0",
+        "retries": "1",
         "caption_prompts": "Describe the image briefly:",
         "caption_fallback_host": "http://localhost:5001"
       }
