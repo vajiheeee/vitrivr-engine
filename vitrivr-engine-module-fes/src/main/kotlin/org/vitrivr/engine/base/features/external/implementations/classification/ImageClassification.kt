@@ -40,7 +40,7 @@ class ImageClassification : ExternalFesAnalyser<ImageContent, LabelDescriptor>()
         const val CAPTION_HOST_PARAMETER_DEFAULT = "http://localhost:5001"
         const val CAPTION_MODEL_PARAMETER_DEFAULT = "blip"
         const val CANDIDATE_LIMIT_PARAMETER_DEFAULT = 12
-        const val CAPTION_PROMPT_PARAMETER_DEFAULT = "Question: What is depicted in this image? Answer:"
+        const val CAPTION_PROMPT_PARAMETER_DEFAULT = "a photo of"
     }
 
     override val contentClasses = setOf(ImageContent::class, TextContent::class)
