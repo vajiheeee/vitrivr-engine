@@ -45,7 +45,7 @@
         "timeoutMs": "300000",
         "pollingIntervalMs": "1000",
         "retries": "2",
-        "caption_prompts": "a photo of|the main object is|the scene shows"
+        "caption_prompts": "<empty>"
       }
     }
   },
