@@ -38,7 +38,7 @@
       "field": "tags",
       "parameters": {
         "caption_host": "http://localhost:5001",
-        "caption_model": "blip",
+        "caption_model": "blip2",
         "caption_prompt": "a photo of",
         "candidate_limit": "12",
         "top_k": "5",
