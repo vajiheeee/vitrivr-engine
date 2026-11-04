@@ -16,18 +16,13 @@ function Get-DockerLogs([string]$Name, [int]$Tail = 300) {
 
 Section "Caption model actually used"
 $captionEvidence = Get-DockerLogs "fes-caption" 500 |
-    Select-String -Pattern "conditional-image-captioning/blip2|Model blip2|model blip2" |
+    Select-String -Pattern "conditional-image-captioning/(blip2|blip)|Model (blip2|blip)|model (blip2|blip)" |
     Select-Object -Last 20
 
 if ($captionEvidence) {
     $captionEvidence | ForEach-Object { Write-Host $_.Line }
 } else {
-    Write-Host "No BLIP2 evidence found in recent fes-caption logs."
-    Write-Host "Recent caption jobs:"
-    Get-DockerLogs "fes-caption" 200 |
-        Select-String -Pattern "conditional-image-captioning|Model blip|model blip" |
-        Select-Object -Last 12 |
-        ForEach-Object { Write-Host $_.Line }
+    Write-Host "No recent BLIP/BLIP2 evidence found in fes-caption logs."
 }
 
 Section "Image actually ingested"
