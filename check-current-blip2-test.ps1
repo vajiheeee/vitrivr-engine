@@ -27,4 +27,19 @@ if (Test-Path $stdout) {
 
 Section "Current BLIP2 status"
 docker ps --filter "name=fes-blip2" --format "{{.Names}} | {{.Status}}"
-docker logs --tail 120 fes-blip2 2>&1
+
+$dockerLog = Join-Path $RepoRoot "build\dynamic-tagging-test\fes-blip2.current.log"
+cmd.exe /d /c "docker logs --tail 120 fes-blip2 > \"$dockerLog\" 2>&1"
+if (Test-Path $dockerLog) {
+    Get-Content $dockerLog
+}
+
+Section "Configured caption backend"
+$configPath = Join-Path $RepoRoot "example-configs\docker\ingestion-image.json"
+if (Test-Path $configPath) {
+    $cfg = Get-Content $configPath -Raw | ConvertFrom-Json
+    Write-Host ("caption_host = " + $cfg.operators.tags.parameters.caption_host)
+    Write-Host ("caption_model = " + $cfg.operators.tags.parameters.caption_model)
+    Write-Host ("caption_fallback_host = " + $cfg.operators.tags.parameters.caption_fallback_host)
+    Write-Host ("caption_prompts = " + $cfg.operators.tags.parameters.caption_prompts)
+}
