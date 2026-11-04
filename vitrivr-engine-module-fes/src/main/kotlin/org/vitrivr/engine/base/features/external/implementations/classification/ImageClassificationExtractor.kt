@@ -10,8 +10,9 @@ import org.vitrivr.engine.base.features.external.implementations.classification.
 import org.vitrivr.engine.base.features.external.implementations.classification.ImageClassification.Companion.CAPTION_HOST_PARAMETER_NAME
 import org.vitrivr.engine.base.features.external.implementations.classification.ImageClassification.Companion.CAPTION_MODEL_PARAMETER_DEFAULT
 import org.vitrivr.engine.base.features.external.implementations.classification.ImageClassification.Companion.CAPTION_MODEL_PARAMETER_NAME
-import org.vitrivr.engine.base.features.external.implementations.classification.ImageClassification.Companion.CAPTION_PROMPT_PARAMETER_DEFAULT
 import org.vitrivr.engine.base.features.external.implementations.classification.ImageClassification.Companion.CAPTION_PROMPT_PARAMETER_NAME
+import org.vitrivr.engine.base.features.external.implementations.classification.ImageClassification.Companion.CAPTION_PROMPTS_PARAMETER_DEFAULT
+import org.vitrivr.engine.base.features.external.implementations.classification.ImageClassification.Companion.CAPTION_PROMPTS_PARAMETER_NAME
 import org.vitrivr.engine.base.features.external.implementations.classification.ImageClassification.Companion.CLASSES_PARAMETER_NAME
 import org.vitrivr.engine.base.features.external.implementations.classification.ImageClassification.Companion.THRESHOLD_PARAMETER_NAME
 import org.vitrivr.engine.base.features.external.implementations.classification.ImageClassification.Companion.TOPK_PARAMETER_NAME
@@ -28,14 +29,13 @@ import java.util.*
 /**
  * Image classification extractor.
  *
- * If the operator provides a static "classes" parameter, this behaves like the
- * original zero-shot classifier. If "classes" is absent, candidate tags are
- * generated dynamically with conditional image captioning and then verified
- * and ranked with OpenCLIP.
+ * If static classes are configured, this behaves like the original zero-shot
+ * classifier. Otherwise, it generates candidate concepts dynamically from
+ * several short BLIP/BLIP2 captions and verifies/ranks them with OpenCLIP.
  *
  * @author Ralph Gasser
  * @author Vajiheh Ansari
- * @version 1.1
+ * @version 1.2
  */
 class ImageClassificationExtractor : FesExtractor<ImageContent, LabelDescriptor> {
 
@@ -75,7 +75,7 @@ class ImageClassificationExtractor : FesExtractor<ImageContent, LabelDescriptor>
         )
     }
 
-    /** Common words that should not become visual candidate tags. */
+    /** Common non-visual words that should never become tags. */
     private val stopWords = setOf(
         "a", "an", "the", "and", "or", "of", "in", "on", "at", "to", "with", "without",
         "for", "from", "by", "is", "are", "was", "were", "be", "being", "been", "this",
@@ -83,7 +83,7 @@ class ImageClassificationExtractor : FesExtractor<ImageContent, LabelDescriptor>
         "image", "picture", "photo", "photograph", "scene", "show", "shows", "showing",
         "depict", "depicts", "depicted", "visible", "main", "object", "objects", "answer",
         "question", "what", "who", "where", "when", "why", "how", "list", "near", "next",
-        "beside", "background", "foreground"
+        "beside", "background", "foreground", "include", "includes", "including"
     )
 
     override fun extract(batch: List<Retrievable>): List<List<LabelDescriptor>> {
@@ -129,43 +129,76 @@ class ImageClassificationExtractor : FesExtractor<ImageContent, LabelDescriptor>
     }
 
     /**
-     * Generates candidate labels for one image through conditional image captioning.
+     * Generates dynamic candidates from multiple short captioning prompts.
+     * The prompts are intentionally short to stay below BLIP generation limits.
      */
     private fun generateDynamicCandidates(image: ImageContent): List<String> {
-        val prompt = this.context[this.name, CAPTION_PROMPT_PARAMETER_NAME]
-            ?: CAPTION_PROMPT_PARAMETER_DEFAULT
+        val prompts = configuredPrompts()
+        val captionModel = this.context[this.name, CAPTION_MODEL_PARAMETER_NAME] ?: CAPTION_MODEL_PARAMETER_DEFAULT
 
-        val response = this.captioningApi.analyse(
-            image to InMemoryTextContent(prompt)
-        )?.value?.trim().orEmpty()
-
-        if (response.isBlank()) {
-            throw IllegalStateException("Captioning returned no candidate tags.")
+        logger.info {
+            "Dynamic tagging caption model: $captionModel; prompts: ${prompts.joinToString(" | ")}"
         }
 
-        logger.info { "Captioning candidate response: $response" }
+        val results = this.captioningApi.analyseBatched(
+            prompts.map { image to InMemoryTextContent(it) }
+        )
 
-        val generatedOnly = stripPromptEcho(response, prompt)
-        logger.info { "Captioning response after prompt removal: $generatedOnly" }
+        val continuations = results.zip(prompts).mapNotNull { (result, prompt) ->
+            val raw = result.value.trim()
+            if (raw.isBlank()) {
+                null
+            } else {
+                logger.info { "Captioning response for prompt '$prompt': $raw" }
+                stripPromptEcho(raw, prompt).takeIf { it.isNotBlank() }
+            }
+        }
+
+        if (continuations.isEmpty()) {
+            throw IllegalStateException("Captioning returned no usable text.")
+        }
 
         val limit = this.context[this.name, CANDIDATE_LIMIT_PARAMETER_NAME]
             ?.toIntOrNull()
             ?.takeIf { it > 0 }
             ?: CANDIDATE_LIMIT_PARAMETER_DEFAULT
 
-        val candidates = parseCandidateTags(generatedOnly).take(limit)
+        val candidates = continuations
+            .flatMap { parseCandidateTags(it) }
+            .distinct()
+            .take(limit)
 
         if (candidates.isEmpty()) {
-            throw IllegalStateException("Could not derive candidate tags from captioning response: $response")
+            throw IllegalStateException(
+                "Could not derive candidate tags from captioning responses: ${continuations.joinToString(" | ")}"
+            )
         }
 
         return candidates
     }
 
     /**
-     * Removes a conditional-captioning prompt when the model echoes it in the
-     * decoded output. BLIP commonly returns the prompt together with the
-     * generated continuation.
+     * Reads either a pipe-separated prompt list or, for backward compatibility,
+     * the old single caption_prompt parameter.
+     */
+    private fun configuredPrompts(): List<String> {
+        val multi = this.context[this.name, CAPTION_PROMPTS_PARAMETER_NAME]
+            ?.split("|")
+            ?.map { it.trim() }
+            ?.filter { it.isNotBlank() }
+            ?.takeIf { it.isNotEmpty() }
+
+        if (multi != null) return multi
+
+        val single = this.context[this.name, CAPTION_PROMPT_PARAMETER_NAME]
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+
+        return single?.let { listOf(it) } ?: CAPTION_PROMPTS_PARAMETER_DEFAULT
+    }
+
+    /**
+     * Removes a conditional-captioning prompt when the model echoes it.
      */
     private fun stripPromptEcho(response: String, prompt: String): String {
         val trimmedResponse = response.trim()
@@ -177,51 +210,35 @@ class ImageClassificationExtractor : FesExtractor<ImageContent, LabelDescriptor>
                 .trimStart(':', '-', ',', '.', ' ')
         }
 
-        val answerMarker = Regex("""(?i)\banswer\s*:\s*""").find(trimmedResponse)
-        if (answerMarker != null) {
-            return trimmedResponse.substring(answerMarker.range.last + 1).trim()
-        }
-
         return trimmedResponse
     }
 
     /**
-     * Parses either a comma-separated tag response or a normal caption.
-     *
-     * The prompt normally produces comma-separated concepts. Token extraction
-     * is kept as a fallback because captioning models do not always follow the
-     * requested output format exactly.
+     * Converts a caption or tag-like response into candidate concepts.
      */
     private fun parseCandidateTags(response: String): List<String> {
         val normalized = response
             .lowercase(Locale.ROOT)
-            .replace(Regex("""^(answer|tags?)\s*:\s*"""), "")
             .trim()
 
-        val commaSeparated = normalized
+        val phraseCandidates = normalized
             .split(Regex("""[,;|\n]+"""))
             .map { cleanCandidate(it) }
             .filter { it.isNotBlank() }
 
-        val tokenFallback = normalized
+        val tokenCandidates = normalized
             .replace(Regex("""[^a-z0-9\- ]+"""), " ")
             .split(Regex("""\s+"""))
             .map { it.trim() }
             .filter { it.length > 2 && it !in stopWords }
 
-        val combined = if (commaSeparated.size > 1) {
-            commaSeparated + tokenFallback
-        } else {
-            tokenFallback
-        }
-
-        return combined
+        return (phraseCandidates + tokenCandidates)
             .map { cleanCandidate(it) }
             .filter { it.isNotBlank() && it !in stopWords }
             .distinct()
     }
 
-    /** Cleans one candidate label while preserving short noun phrases. */
+    /** Cleans one candidate while preserving useful short noun phrases. */
     private fun cleanCandidate(value: String): String {
         return value
             .trim()
