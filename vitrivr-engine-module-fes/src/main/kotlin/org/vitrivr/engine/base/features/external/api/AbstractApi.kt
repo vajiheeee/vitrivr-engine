@@ -45,7 +45,7 @@ abstract class AbstractApi<I, O>(
     }
 
     init {
-        logger.info { "Initialized API wrapper with host: $host, model: $model, timeout: $timeoutMs seconds, polling interval: $pollingIntervalMs ms" }
+        logger.info { "Initialized API wrapper with host: $host, model: $model, timeout: $timeoutMs ms, polling interval: $pollingIntervalMs ms" }
     }
 
     /**
@@ -54,7 +54,7 @@ abstract class AbstractApi<I, O>(
      * @param input The input [I] to analyse.
      */
     fun analyse(input: I): O? = runBlocking {
-        var retriesLeft = retries
+        var retriesLeft = retries.coerceAtLeast(1)
         outer@ while (retriesLeft > 0) {
             /* Start job. */
             val jobStatus = this@AbstractApi.startJob(input)
@@ -93,7 +93,7 @@ abstract class AbstractApi<I, O>(
     }
 
     fun analyseBatched(input: List<I>): List<O> = runBlocking {
-        var retriesLeft = retries
+        var retriesLeft = retries.coerceAtLeast(1)
         outer@ while (retriesLeft > 0) {
             /* Start job. */
             val jobStatus = this@AbstractApi.startBatchedJob(input)
