@@ -48,11 +48,31 @@ Section "Run architecture_02 ingestion"
 $jobResponse = (& curl.exe -s -X POST -F "pipelineName=image" http://127.0.0.1:7070/api/example/index) -join ""
 Write-Host "Engine response: $jobResponse"
 
-for ($i = 0; $i -lt 900; $i++) {
+for ($i = 0; $i -lt 180; $i++) {
     $countRaw = (& docker exec vitrivr-postgres psql -U postgres -d postgres -tAc "SELECT COUNT(*) FROM example.descriptor_tags;") -join ""
     $count = 0
     [void][int]::TryParse($countRaw.Trim(), [ref]$count)
     if ($count -gt 0) { break }
+
+    if (($i % 10) -eq 0) {
+        Write-Host ("Still processing architecture_02... " + $i + "s")
+
+        $engineFailure = Get-Content $stdout -ErrorAction SilentlyContinue |
+            Select-String -Pattern "All configured captioning models failed|Error during batched extraction|failed during dynamic candidate generation" |
+            Select-Object -Last 1
+        if ($engineFailure) {
+            Write-Host $engineFailure.Line
+            break
+        }
+
+        $blip2Failure = (& cmd.exe /d /c "docker logs --tail 40 fes-blip2 2>&1") |
+            Select-String -Pattern "OutOfMemory|Killed|LoadModelFailedException|Cannot load the model|Traceback" |
+            Select-Object -Last 1
+        if ($blip2Failure) {
+            Write-Host ("BLIP2 diagnostic: " + $blip2Failure.Line)
+        }
+    }
+
     Start-Sleep -Seconds 1
 }
 
