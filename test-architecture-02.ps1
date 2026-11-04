@@ -48,7 +48,7 @@ Section "Run architecture_02 ingestion"
 $jobResponse = (& curl.exe -s -X POST -F "pipelineName=image" http://127.0.0.1:7070/api/example/index) -join ""
 Write-Host "Engine response: $jobResponse"
 
-for ($i = 0; $i -lt 300; $i++) {
+for ($i = 0; $i -lt 900; $i++) {
     $countRaw = (& docker exec vitrivr-postgres psql -U postgres -d postgres -tAc "SELECT COUNT(*) FROM example.descriptor_tags;") -join ""
     $count = 0
     [void][int]::TryParse($countRaw.Trim(), [ref]$count)
@@ -67,3 +67,20 @@ Get-Content $stdout -ErrorAction SilentlyContinue |
     Select-String -Pattern "Captioning response|Dynamic candidate tags" |
     Select-Object -Last 20 |
     ForEach-Object { Write-Host $_.Line }
+
+
+$countRaw = (& docker exec vitrivr-postgres psql -U postgres -d postgres -tAc "SELECT COUNT(*) FROM example.descriptor_tags;") -join ""
+$count = 0
+[void][int]::TryParse($countRaw.Trim(), [ref]$count)
+
+if ($count -eq 0) {
+    Section "BLIP2 diagnostics"
+    Write-Host "--- Engine relevant log ---"
+    Get-Content $stdout -ErrorAction SilentlyContinue |
+        Select-String -Pattern "caption model attempt|Captioning response|failed during dynamic candidate generation|All configured captioning models failed|Error during batched extraction" |
+        Select-Object -Last 50 |
+        ForEach-Object { Write-Host $_.Line }
+
+    Write-Host "--- fes-blip2 recent log ---"
+    & cmd.exe /d /c "docker logs --tail 120 fes-blip2 2>&1"
+}
