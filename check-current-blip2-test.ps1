@@ -20,16 +20,20 @@ docker exec vitrivr-postgres psql -U postgres -d postgres -c "SELECT label, conf
 Section "Current engine status"
 if (Test-Path $stdout) {
     Get-Content $stdout |
-        Select-String -Pattern "caption model attempt|Captioning response|Dynamic candidate tags|failed during dynamic candidate generation|All configured captioning models failed|Error during batched extraction" |
+        Select-String -Pattern "caption model attempt|Captioning response|Dynamic candidate tags|failed during dynamic candidate generation|All configured captioning models failed|Error during batched extraction|Starting batched conditional image captioning|Api Error" |
         Select-Object -Last 50 |
         ForEach-Object { Write-Host $_.Line }
+
+    Section "Full engine tail"
+    Get-Content $stdout -Tail 80
 }
 
 Section "Current BLIP2 status"
 docker ps --filter "name=fes-blip2" --format "{{.Names}} | {{.Status}}"
 
 $dockerLog = Join-Path $RepoRoot "build\dynamic-tagging-test\fes-blip2.current.log"
-cmd.exe /d /c "docker logs --tail 120 fes-blip2 > \"$dockerLog\" 2>&1"
+$cmd = 'docker logs --tail 120 fes-blip2 > "' + $dockerLog + '" 2>&1'
+cmd.exe /d /c $cmd | Out-Null
 if (Test-Path $dockerLog) {
     Get-Content $dockerLog
 }
