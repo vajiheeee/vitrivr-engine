@@ -15,14 +15,17 @@ function Get-DockerLogs([string]$Name, [int]$Tail = 300) {
 }
 
 Section "Caption model actually used"
-$captionEvidence = Get-DockerLogs "fes-caption" 500 |
-    Select-String -Pattern "conditional-image-captioning/(blip2|blip)|Model (blip2|blip)|model (blip2|blip)" |
-    Select-Object -Last 20
+$stdout = Join-Path $RepoRoot "build\dynamic-tagging-test\engine.out.log"
+$captionEvidence = if (Test-Path $stdout) {
+    Get-Content $stdout |
+        Select-String -Pattern "Dynamic tagging caption model attempt:" |
+        Select-Object -Last 5
+}
 
 if ($captionEvidence) {
     $captionEvidence | ForEach-Object { Write-Host $_.Line }
 } else {
-    Write-Host "No recent BLIP/BLIP2 evidence found in fes-caption logs."
+    Write-Host "No caption-model line found in the current engine log."
 }
 
 Section "Image actually ingested"
@@ -32,7 +35,6 @@ Section "Dynamic tagging result"
 docker exec vitrivr-postgres psql -U postgres -d postgres -c "SELECT retrievableid, label, confidence FROM example.descriptor_tags ORDER BY confidence DESC;"
 
 Section "Relevant engine log"
-$stdout = Join-Path $RepoRoot "build\dynamic-tagging-test\engine.out.log"
 if (Test-Path $stdout) {
     Get-Content $stdout |
         Select-String -Pattern "Dynamic tagging caption model|Captioning response|Dynamic candidate tags|Error during batched extraction" |
