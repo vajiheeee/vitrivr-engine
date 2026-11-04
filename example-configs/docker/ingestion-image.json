@@ -39,7 +39,7 @@
       "parameters": {
         "caption_host": "http://localhost:5001",
         "caption_model": "blip",
-        "caption_prompt": "Question: List the main visible objects and scene concepts in this image as short comma-separated tags. Use concrete nouns or short noun phrases only and do not explain. Answer:",
+        "caption_prompt": "a photo of",
         "candidate_limit": "12",
         "top_k": "5",
         "threshold": "0.0",
