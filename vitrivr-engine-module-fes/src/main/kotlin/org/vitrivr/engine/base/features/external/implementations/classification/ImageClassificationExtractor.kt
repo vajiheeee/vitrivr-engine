@@ -181,8 +181,8 @@ class ImageClassificationExtractor : FesExtractor<ImageContent, LabelDescriptor>
                 )
             } catch (t: Throwable) {
                 lastFailure = t
-                logger.warn(t) {
-                    "Caption model '$captionModel' failed during dynamic candidate generation."
+                logger.warn {
+                    "Caption model '$captionModel' failed during dynamic candidate generation: ${t.message}"
                 }
             }
         }
