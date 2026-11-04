@@ -26,5 +26,5 @@ if (Test-Path $stdout) {
 }
 
 Section "Current BLIP2 status"
-& cmd.exe /d /c "docker ps --filter name=fes-blip2 --format \"{{.Names}} | {{.Status}}\""
-& cmd.exe /d /c "docker logs --tail 120 fes-blip2 2>&1"
+docker ps --filter "name=fes-blip2" --format "{{.Names}} | {{.Status}}"
+docker logs --tail 120 fes-blip2 2>&1
