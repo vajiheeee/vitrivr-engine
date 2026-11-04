@@ -201,7 +201,7 @@ class ImageClassificationExtractor : FesExtractor<ImageContent, LabelDescriptor>
         val multi = this.context[this.name, CAPTION_PROMPTS_PARAMETER_NAME]
             ?.split("|")
             ?.map { it.trim() }
-            ?.filter { it.isNotBlank() }
+            ?.map { if (it.equals("<empty>", ignoreCase = true)) "" else it }
             ?.takeIf { it.isNotEmpty() }
 
         if (multi != null) return multi
@@ -237,10 +237,12 @@ class ImageClassificationExtractor : FesExtractor<ImageContent, LabelDescriptor>
             .lowercase(Locale.ROOT)
             .trim()
 
-        val phraseCandidates = normalized
+        val phraseParts = normalized
             .split(Regex("""[,;|\n]+"""))
             .map { cleanCandidate(it) }
             .filter { it.isNotBlank() }
+
+        val phraseCandidates = if (phraseParts.size > 1) phraseParts else emptyList()
 
         val tokenCandidates = normalized
             .replace(Regex("""[^a-z0-9\- ]+"""), " ")
