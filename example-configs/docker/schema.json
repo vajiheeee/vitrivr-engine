@@ -25,12 +25,12 @@
           }
         },
         "tags": {
-         "factory": "ImageClassification",
+          "factory": "ImageClassification",
           "parameters": {
-          "host": "http://localhost:5000",
-          "model": "open_clip_vit_b32"
+            "host": "http://localhost:5000",
+            "model": "open_clip_vit_b32"
           }
-       },
+        },
         "dino": {
           "factory": "DINO",
           "parameters": {
@@ -83,6 +83,9 @@
       "extractionPipelines": {
         "image": {
           "path": "./ingestion-image.json"
+        },
+        "image-eval": {
+          "path": "./ingestion-image-eval.json"
         }
       }
     }
