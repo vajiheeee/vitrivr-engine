@@ -1,5 +1,5 @@
 param(
-    [string]$RepoRoot = "C:\\vitrivr\\vitrivr-engine"
+    [string]$RepoRoot = "C:\vitrivr\vitrivr-engine"
 )
 
 $ErrorActionPreference = "Stop"
@@ -28,7 +28,7 @@ git switch team/image
 git pull --ff-only origin team/image
 
 Section "Build vitrivr-engine"
-& .\\gradlew.bat :vitrivr-engine-server:installDist --rerun-tasks
+& .\gradlew.bat :vitrivr-engine-server:installDist --rerun-tasks
 if ($LASTEXITCODE -ne 0) {
     throw "Gradle build failed."
 }
@@ -62,9 +62,9 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Section "Start freshly built engine"
-$engineBat = Join-Path $RepoRoot "vitrivr-engine-server\\build\\install\\vitrivr-engine-server\\bin\\vitrivr-engine-server.bat"
-$schema = Join-Path $RepoRoot "example-configs\\docker\\schema.json"
-$logDir = Join-Path $RepoRoot "build\\dynamic-tagging-test"
+$engineBat = Join-Path $RepoRoot "vitrivr-engine-server\build\install\vitrivr-engine-server\bin\vitrivr-engine-server.bat"
+$schema = Join-Path $RepoRoot "example-configs\docker\schema.json"
+$logDir = Join-Path $RepoRoot "build\dynamic-tagging-test"
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 $stdout = Join-Path $logDir "engine.out.log"
 $stderr = Join-Path $logDir "engine.err.log"
@@ -129,6 +129,9 @@ if ($captionEvidence) {
 } else {
     Write-Host "No BLIP2 evidence found in recent fes-caption logs."
 }
+
+Section "Image actually ingested"
+docker exec vitrivr-postgres psql -U postgres -d postgres -c "SELECT retrievableid, path, size FROM example.descriptor_file;"
 
 Section "Dynamic tagging result"
 docker exec vitrivr-postgres psql -U postgres -d postgres -c "SELECT retrievableid, label, confidence FROM example.descriptor_tags ORDER BY confidence DESC;"
