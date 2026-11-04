@@ -38,7 +38,7 @@ class ImageClassification : ExternalFesAnalyser<ImageContent, LabelDescriptor>()
         const val CANDIDATE_LIMIT_PARAMETER_NAME = "candidate_limit"
 
         const val CAPTION_HOST_PARAMETER_DEFAULT = "http://localhost:5001"
-        const val CAPTION_MODEL_PARAMETER_DEFAULT = "blip"
+        const val CAPTION_MODEL_PARAMETER_DEFAULT = "blip2"
         const val CANDIDATE_LIMIT_PARAMETER_DEFAULT = 12
         const val CAPTION_PROMPT_PARAMETER_DEFAULT = "a photo of"
     }
