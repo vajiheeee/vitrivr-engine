@@ -1,6 +1,7 @@
 package org.vitrivr.engine.base.features.external.implementations.classification
 
 import org.vitrivr.engine.base.features.external.api.ConditionalImageCaptioningApi
+import org.vitrivr.engine.base.features.external.api.ImageCaptioningApi
 import org.vitrivr.engine.base.features.external.api.ZeroShotClassificationApi
 import org.vitrivr.engine.base.features.external.common.ExternalFesAnalyser
 import org.vitrivr.engine.base.features.external.common.FesExtractor
@@ -68,6 +69,15 @@ class ImageClassificationExtractor : FesExtractor<ImageContent, LabelDescriptor>
 
     /** Builds a captioning API client for the requested FES host and model. */
     private fun captioningApi(host: String, model: String) = ConditionalImageCaptioningApi(
+        host,
+        model,
+        this.timeoutMs,
+        this.pollingIntervalMs,
+        this.retries
+    )
+
+    /** Builds an unconditional image-captioning API client. */
+    private fun imageCaptioningApi(host: String, model: String) = ImageCaptioningApi(
         host,
         model,
         this.timeoutMs,
@@ -152,18 +162,31 @@ class ImageClassificationExtractor : FesExtractor<ImageContent, LabelDescriptor>
             }
 
             try {
-                val results = captioningApi(captionHost, captionModel).analyseBatched(
-                    prompts.map { image to InMemoryTextContent(it) }
-                )
-
-                val continuations = results.zip(prompts).mapNotNull { (result, prompt) ->
-                    val raw = result.value.trim()
-                    if (raw.isBlank()) {
-                        null
-                    } else {
-                        logger.info { "Captioning response [$captionModel] for prompt '$prompt': $raw" }
-                        stripPromptEcho(raw, prompt).takeIf { it.isNotBlank() }
-                    }
+                val continuations = if (captionModel.equals("vit_gpt2", ignoreCase = true)) {
+                    imageCaptioningApi(captionHost, captionModel)
+                        .analyseBatched(listOf(image))
+                        .mapNotNull { result ->
+                            val raw = result.value.trim()
+                            if (raw.isBlank()) {
+                                null
+                            } else {
+                                logger.info { "Captioning response [$captionModel] without prompt: $raw" }
+                                raw
+                            }
+                        }
+                } else {
+                    captioningApi(captionHost, captionModel)
+                        .analyseBatched(prompts.map { image to InMemoryTextContent(it) })
+                        .zip(prompts)
+                        .mapNotNull { (result, prompt) ->
+                            val raw = result.value.trim()
+                            if (raw.isBlank()) {
+                                null
+                            } else {
+                                logger.info { "Captioning response [$captionModel] for prompt '$prompt': $raw" }
+                                stripPromptEcho(raw, prompt).takeIf { it.isNotBlank() }
+                            }
+                        }
                 }
 
                 val limit = this.context[this.name, CANDIDATE_LIMIT_PARAMETER_NAME]
