@@ -126,12 +126,12 @@ for ($i = 0; $i -lt 600; $i++) {
 }
 
 Section "Caption model actually used"
-$captionEvidence = Get-DockerLogs "fes-caption" 300 | Select-String -Pattern "blip2|conditional-image-captioning/blip2" | Select-Object -Last 20
+$captionEvidence = Get-DockerLogs "fes-caption" 300 | Select-String -Pattern "conditional-image-captioning/(blip2|blip)|Model (blip2|blip)|model (blip2|blip)" | Select-Object -Last 20
 
 if ($captionEvidence) {
     $captionEvidence | ForEach-Object { Write-Host $_.Line }
 } else {
-    Write-Host "No BLIP2 evidence found in recent fes-caption logs."
+    Write-Host "No recent BLIP/BLIP2 evidence found in fes-caption logs."
 }
 
 Section "Image actually ingested"
