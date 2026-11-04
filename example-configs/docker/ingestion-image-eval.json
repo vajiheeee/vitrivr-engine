@@ -1,0 +1,83 @@
+{
+  "schema": "example",
+  "context": {
+    "contentFactory": "InMemoryContentFactory",
+    "resolvers": [
+      "disk"
+    ]
+  },
+  "operators": {
+    "enumerator": {
+      "factory": "FileSystemEnumerator",
+      "parameters": {
+        "path": "C:/vitrivr/vitrivr-engine/example/demo-images",
+        "depth": "3",
+        "mediaTypes": "IMAGE",
+        "limit": "50",
+        "regex": "(?i).*[\\\\/](architecture|landscapes|portraits|religious|still_life)[\\\\/].*[.](jpg|jpeg|png)$"
+      }
+    },
+    "decoder": {
+      "factory": "ImageDecoder"
+    },
+    "aggregator": {
+      "factory": "MiddleContentAggregator"
+    },
+    "persister": {
+      "factory": "PersistRetrievableTransformer"
+    },
+    "source": {
+      "field": "file"
+    },
+    "tags": {
+      "field": "tags",
+      "parameters": {
+        "classes": "architecture,landscape,portrait,religious art,still life",
+        "top_k": "5",
+        "threshold": "0.0",
+        "timeoutMs": "120000",
+        "pollingIntervalMs": "1000",
+        "retries": "1"
+      }
+    }
+  },
+  "operations": {
+    "enumerator": {
+      "operator": "enumerator"
+    },
+    "decoder": {
+      "operator": "decoder",
+      "inputs": [
+        "enumerator"
+      ]
+    },
+    "middle": {
+      "operator": "aggregator",
+      "inputs": [
+        "decoder"
+      ]
+    },
+    "persist": {
+      "operator": "persister",
+      "inputs": [
+        "middle"
+      ]
+    },
+    "source": {
+      "operator": "source",
+      "inputs": [
+        "persist"
+      ]
+    },
+    "tags": {
+      "operator": "tags",
+      "inputs": [
+        "source"
+      ]
+    }
+  },
+  "output": [
+    "tags"
+  ],
+  "mergeType": "MERGE"
+}
