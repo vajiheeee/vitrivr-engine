@@ -13,8 +13,7 @@
         "path": "C:/vitrivr/vitrivr-engine/example/demo-images",
         "depth": "3",
         "mediaTypes": "IMAGE",
-        "limit": "1",
-        "regex": ".*architecture_02[.]jpg$"
+        "limit": "50"
       }
     },
     "decoder": {
