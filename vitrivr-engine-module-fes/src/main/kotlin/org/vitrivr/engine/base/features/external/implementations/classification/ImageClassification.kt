@@ -34,11 +34,13 @@ class ImageClassification : ExternalFesAnalyser<ImageContent, LabelDescriptor>()
         const val TOPK_PARAMETER_NAME = "top_k"
         const val CAPTION_HOST_PARAMETER_NAME = "caption_host"
         const val CAPTION_MODEL_PARAMETER_NAME = "caption_model"
+        const val CAPTION_FALLBACK_HOST_PARAMETER_NAME = "caption_fallback_host"
         const val CAPTION_PROMPT_PARAMETER_NAME = "caption_prompt"
         const val CAPTION_PROMPTS_PARAMETER_NAME = "caption_prompts"
         const val CANDIDATE_LIMIT_PARAMETER_NAME = "candidate_limit"
 
         const val CAPTION_HOST_PARAMETER_DEFAULT = "http://localhost:5001"
+        const val CAPTION_FALLBACK_HOST_PARAMETER_DEFAULT = "http://localhost:5001"
         const val CAPTION_MODEL_PARAMETER_DEFAULT = "blip"
         const val CANDIDATE_LIMIT_PARAMETER_DEFAULT = 12
         const val CAPTION_PROMPT_PARAMETER_DEFAULT = "a photo of"
