@@ -7,6 +7,7 @@ import org.vitrivr.engine.base.features.external.common.ExternalFesAnalyser
 import org.vitrivr.engine.base.features.external.common.FesExtractor
 import org.vitrivr.engine.base.features.external.implementations.classification.ImageClassification.Companion.CANDIDATE_LIMIT_PARAMETER_DEFAULT
 import org.vitrivr.engine.base.features.external.implementations.classification.ImageClassification.Companion.CANDIDATE_LIMIT_PARAMETER_NAME
+import org.vitrivr.engine.base.features.external.implementations.classification.ImageClassification.Companion.CANDIDATE_POOL_PARAMETER_NAME
 import org.vitrivr.engine.base.features.external.implementations.classification.ImageClassification.Companion.CAPTION_FALLBACK_HOST_PARAMETER_DEFAULT
 import org.vitrivr.engine.base.features.external.implementations.classification.ImageClassification.Companion.CAPTION_FALLBACK_HOST_PARAMETER_NAME
 import org.vitrivr.engine.base.features.external.implementations.classification.ImageClassification.Companion.CAPTION_HOST_PARAMETER_DEFAULT
@@ -138,12 +139,23 @@ class ImageClassificationExtractor : FesExtractor<ImageContent, LabelDescriptor>
         }
     }
 
+    /** Reads a configurable, domain-level candidate pool from the operator context. */
+    private fun configuredCandidatePool(): List<String> {
+        return this.context[this.name, CANDIDATE_POOL_PARAMETER_NAME]
+            ?.split(",")
+            ?.map { cleanCandidate(it.lowercase(Locale.ROOT)) }
+            ?.filter { it.isNotBlank() && it !in stopWords }
+            ?.distinct()
+            ?: emptyList()
+    }
+
     /**
      * Generates dynamic candidates from multiple short captioning prompts.
      * The prompts are intentionally short to stay below BLIP generation limits.
      */
     private fun generateDynamicCandidates(image: ImageContent): List<String> {
         val prompts = configuredPrompts()
+        val candidatePool = configuredCandidatePool()
         val configuredModel = this.context[this.name, CAPTION_MODEL_PARAMETER_NAME] ?: CAPTION_MODEL_PARAMETER_DEFAULT
         val configuredHost = this.context[this.name, CAPTION_HOST_PARAMETER_NAME] ?: CAPTION_HOST_PARAMETER_DEFAULT
         val fallbackHost = this.context[this.name, CAPTION_FALLBACK_HOST_PARAMETER_NAME]
@@ -154,6 +166,7 @@ class ImageClassificationExtractor : FesExtractor<ImageContent, LabelDescriptor>
             "blip" to fallbackHost
         ).distinct()
 
+        val captionCandidates = mutableListOf<String>()
         var lastFailure: Throwable? = null
 
         for ((captionModel, captionHost) in backends) {
@@ -189,23 +202,15 @@ class ImageClassificationExtractor : FesExtractor<ImageContent, LabelDescriptor>
                         }
                 }
 
-                val limit = this.context[this.name, CANDIDATE_LIMIT_PARAMETER_NAME]
-                    ?.toIntOrNull()
-                    ?.takeIf { it > 0 }
-                    ?: CANDIDATE_LIMIT_PARAMETER_DEFAULT
+                captionCandidates += continuations.flatMap { parseCandidateTags(it) }
 
-                val candidates = continuations
-                    .flatMap { parseCandidateTags(it) }
-                    .distinct()
-                    .take(limit)
-
-                if (candidates.isNotEmpty()) {
+                if (captionCandidates.isNotEmpty()) {
                     if (captionModel != configuredModel) {
                         logger.warn {
                             "Caption model '$configuredModel' failed; using fallback model '$captionModel'."
                         }
                     }
-                    return candidates
+                    break
                 }
 
                 lastFailure = IllegalStateException(
@@ -219,8 +224,26 @@ class ImageClassificationExtractor : FesExtractor<ImageContent, LabelDescriptor>
             }
         }
 
+        val limit = this.context[this.name, CANDIDATE_LIMIT_PARAMETER_NAME]
+            ?.toIntOrNull()
+            ?.takeIf { it > 0 }
+            ?: CANDIDATE_LIMIT_PARAMETER_DEFAULT
+
+        val combined = (captionCandidates + candidatePool)
+            .map { cleanCandidate(it) }
+            .filter { it.isNotBlank() && it !in stopWords }
+            .distinct()
+            .take(limit)
+
+        if (combined.isNotEmpty()) {
+            logger.info {
+                "Hybrid candidate set: caption=${captionCandidates.distinct().size}, pool=${candidatePool.size}, total=${combined.size}"
+            }
+            return combined
+        }
+
         throw IllegalStateException(
-            "All configured captioning models failed to generate dynamic candidate tags.",
+            "No caption-derived or configured candidate tags were available.",
             lastFailure
         )
     }
