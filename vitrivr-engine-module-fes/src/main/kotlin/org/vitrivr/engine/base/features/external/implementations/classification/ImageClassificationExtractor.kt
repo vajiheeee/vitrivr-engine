@@ -64,16 +64,14 @@ class ImageClassificationExtractor : FesExtractor<ImageContent, LabelDescriptor>
         )
     }
 
-    /** Captioning API used only when no static classes are configured. */
-    private val captioningApi by lazy {
-        ConditionalImageCaptioningApi(
-            this.context[this.name, CAPTION_HOST_PARAMETER_NAME] ?: CAPTION_HOST_PARAMETER_DEFAULT,
-            this.context[this.name, CAPTION_MODEL_PARAMETER_NAME] ?: CAPTION_MODEL_PARAMETER_DEFAULT,
-            this.timeoutMs,
-            this.pollingIntervalMs,
-            this.retries
-        )
-    }
+    /** Builds a captioning API client for the requested FES model. */
+    private fun captioningApi(model: String) = ConditionalImageCaptioningApi(
+        this.context[this.name, CAPTION_HOST_PARAMETER_NAME] ?: CAPTION_HOST_PARAMETER_DEFAULT,
+        model,
+        this.timeoutMs,
+        this.pollingIntervalMs,
+        this.retries
+    )
 
     /** Common non-visual words that should never become tags. */
     private val stopWords = setOf(
@@ -134,47 +132,65 @@ class ImageClassificationExtractor : FesExtractor<ImageContent, LabelDescriptor>
      */
     private fun generateDynamicCandidates(image: ImageContent): List<String> {
         val prompts = configuredPrompts()
-        val captionModel = this.context[this.name, CAPTION_MODEL_PARAMETER_NAME] ?: CAPTION_MODEL_PARAMETER_DEFAULT
+        val configuredModel = this.context[this.name, CAPTION_MODEL_PARAMETER_NAME] ?: CAPTION_MODEL_PARAMETER_DEFAULT
+        val models = listOf(configuredModel, "blip").distinct()
 
-        logger.info {
-            "Dynamic tagging caption model: $captionModel; prompts: ${prompts.joinToString(" | ")}"
-        }
+        var lastFailure: Throwable? = null
 
-        val results = this.captioningApi.analyseBatched(
-            prompts.map { image to InMemoryTextContent(it) }
-        )
+        for (captionModel in models) {
+            logger.info {
+                "Dynamic tagging caption model attempt: $captionModel; prompts: ${prompts.joinToString(" | ")}"
+            }
 
-        val continuations = results.zip(prompts).mapNotNull { (result, prompt) ->
-            val raw = result.value.trim()
-            if (raw.isBlank()) {
-                null
-            } else {
-                logger.info { "Captioning response for prompt '$prompt': $raw" }
-                stripPromptEcho(raw, prompt).takeIf { it.isNotBlank() }
+            try {
+                val results = captioningApi(captionModel).analyseBatched(
+                    prompts.map { image to InMemoryTextContent(it) }
+                )
+
+                val continuations = results.zip(prompts).mapNotNull { (result, prompt) ->
+                    val raw = result.value.trim()
+                    if (raw.isBlank()) {
+                        null
+                    } else {
+                        logger.info { "Captioning response [$captionModel] for prompt '$prompt': $raw" }
+                        stripPromptEcho(raw, prompt).takeIf { it.isNotBlank() }
+                    }
+                }
+
+                val limit = this.context[this.name, CANDIDATE_LIMIT_PARAMETER_NAME]
+                    ?.toIntOrNull()
+                    ?.takeIf { it > 0 }
+                    ?: CANDIDATE_LIMIT_PARAMETER_DEFAULT
+
+                val candidates = continuations
+                    .flatMap { parseCandidateTags(it) }
+                    .distinct()
+                    .take(limit)
+
+                if (candidates.isNotEmpty()) {
+                    if (captionModel != configuredModel) {
+                        logger.warn {
+                            "Caption model '$configuredModel' failed; using fallback model '$captionModel'."
+                        }
+                    }
+                    return candidates
+                }
+
+                lastFailure = IllegalStateException(
+                    "Caption model '$captionModel' returned no usable candidate tags."
+                )
+            } catch (t: Throwable) {
+                lastFailure = t
+                logger.warn(t) {
+                    "Caption model '$captionModel' failed during dynamic candidate generation."
+                }
             }
         }
 
-        if (continuations.isEmpty()) {
-            throw IllegalStateException("Captioning returned no usable text.")
-        }
-
-        val limit = this.context[this.name, CANDIDATE_LIMIT_PARAMETER_NAME]
-            ?.toIntOrNull()
-            ?.takeIf { it > 0 }
-            ?: CANDIDATE_LIMIT_PARAMETER_DEFAULT
-
-        val candidates = continuations
-            .flatMap { parseCandidateTags(it) }
-            .distinct()
-            .take(limit)
-
-        if (candidates.isEmpty()) {
-            throw IllegalStateException(
-                "Could not derive candidate tags from captioning responses: ${continuations.joinToString(" | ")}"
-            )
-        }
-
-        return candidates
+        throw IllegalStateException(
+            "All configured captioning models failed to generate dynamic candidate tags.",
+            lastFailure
+        )
     }
 
     /**
