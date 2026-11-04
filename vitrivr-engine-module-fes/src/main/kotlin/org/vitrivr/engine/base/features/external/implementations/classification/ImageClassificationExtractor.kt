@@ -6,6 +6,8 @@ import org.vitrivr.engine.base.features.external.common.ExternalFesAnalyser
 import org.vitrivr.engine.base.features.external.common.FesExtractor
 import org.vitrivr.engine.base.features.external.implementations.classification.ImageClassification.Companion.CANDIDATE_LIMIT_PARAMETER_DEFAULT
 import org.vitrivr.engine.base.features.external.implementations.classification.ImageClassification.Companion.CANDIDATE_LIMIT_PARAMETER_NAME
+import org.vitrivr.engine.base.features.external.implementations.classification.ImageClassification.Companion.CAPTION_FALLBACK_HOST_PARAMETER_DEFAULT
+import org.vitrivr.engine.base.features.external.implementations.classification.ImageClassification.Companion.CAPTION_FALLBACK_HOST_PARAMETER_NAME
 import org.vitrivr.engine.base.features.external.implementations.classification.ImageClassification.Companion.CAPTION_HOST_PARAMETER_DEFAULT
 import org.vitrivr.engine.base.features.external.implementations.classification.ImageClassification.Companion.CAPTION_HOST_PARAMETER_NAME
 import org.vitrivr.engine.base.features.external.implementations.classification.ImageClassification.Companion.CAPTION_MODEL_PARAMETER_DEFAULT
@@ -64,9 +66,9 @@ class ImageClassificationExtractor : FesExtractor<ImageContent, LabelDescriptor>
         )
     }
 
-    /** Builds a captioning API client for the requested FES model. */
-    private fun captioningApi(model: String) = ConditionalImageCaptioningApi(
-        this.context[this.name, CAPTION_HOST_PARAMETER_NAME] ?: CAPTION_HOST_PARAMETER_DEFAULT,
+    /** Builds a captioning API client for the requested FES host and model. */
+    private fun captioningApi(host: String, model: String) = ConditionalImageCaptioningApi(
+        host,
         model,
         this.timeoutMs,
         this.pollingIntervalMs,
@@ -133,17 +135,24 @@ class ImageClassificationExtractor : FesExtractor<ImageContent, LabelDescriptor>
     private fun generateDynamicCandidates(image: ImageContent): List<String> {
         val prompts = configuredPrompts()
         val configuredModel = this.context[this.name, CAPTION_MODEL_PARAMETER_NAME] ?: CAPTION_MODEL_PARAMETER_DEFAULT
-        val models = listOf(configuredModel, "blip").distinct()
+        val configuredHost = this.context[this.name, CAPTION_HOST_PARAMETER_NAME] ?: CAPTION_HOST_PARAMETER_DEFAULT
+        val fallbackHost = this.context[this.name, CAPTION_FALLBACK_HOST_PARAMETER_NAME]
+            ?: CAPTION_FALLBACK_HOST_PARAMETER_DEFAULT
+
+        val backends = listOf(
+            configuredModel to configuredHost,
+            "blip" to fallbackHost
+        ).distinct()
 
         var lastFailure: Throwable? = null
 
-        for (captionModel in models) {
+        for ((captionModel, captionHost) in backends) {
             logger.info {
-                "Dynamic tagging caption model attempt: $captionModel; prompts: ${prompts.joinToString(" | ")}"
+                "Dynamic tagging caption model attempt: $captionModel at $captionHost; prompts: ${prompts.joinToString(" | ")}"
             }
 
             try {
-                val results = captioningApi(captionModel).analyseBatched(
+                val results = captioningApi(captionHost, captionModel).analyseBatched(
                     prompts.map { image to InMemoryTextContent(it) }
                 )
 
