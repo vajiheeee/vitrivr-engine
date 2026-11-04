@@ -42,7 +42,7 @@ class ImageClassification : ExternalFesAnalyser<ImageContent, LabelDescriptor>()
         const val CAPTION_MODEL_PARAMETER_DEFAULT = "blip"
         const val CANDIDATE_LIMIT_PARAMETER_DEFAULT = 12
         const val CAPTION_PROMPT_PARAMETER_DEFAULT = "a photo of"
-        val CAPTION_PROMPTS_PARAMETER_DEFAULT = listOf("a photo of", "the main object is", "the scene shows")
+        val CAPTION_PROMPTS_PARAMETER_DEFAULT = listOf("")
     }
 
     override val contentClasses = setOf(ImageContent::class, TextContent::class)
