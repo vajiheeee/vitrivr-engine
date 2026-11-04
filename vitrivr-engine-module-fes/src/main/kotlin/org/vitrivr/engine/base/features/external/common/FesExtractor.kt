@@ -47,7 +47,7 @@ abstract class FesExtractor<C : ContentElement<*>, D : Descriptor<*>> : Abstract
 
     /** */
     protected val timeoutMs: Long
-        get() = this.context[this.name, POLLINGINTERVAL_MS_PARAMETER_NAME]?.toLongOrNull()
+        get() = this.context[this.name, ExternalFesAnalyser.TIMEOUT_MS_PARAMETER_NAME]?.toLongOrNull()
             ?: TIMEOUT_MS_PARAMETER_DEFAULT
 
     /** */
