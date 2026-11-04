@@ -2,7 +2,9 @@
   "schema": "example",
   "context": {
     "contentFactory": "InMemoryContentFactory",
-    "resolvers": ["disk"]
+    "resolvers": [
+      "disk"
+    ]
   },
   "operators": {
     "enumerator": {
@@ -32,14 +34,20 @@
     "source": {
       "field": "file"
     },
-     "tags": {
-       "field": "tags",
-       "parameters": {
-       "classes": "portrait,painting,artwork,sculpture,woman,man,child,animal,horse,building,landscape,indoor,outdoor,frame,music,instrument",
-       "top_k": "5",
-       "threshold": "0.0"
-  }
-   }
+    "tags": {
+      "field": "tags",
+      "parameters": {
+        "caption_host": "http://localhost:5001",
+        "caption_model": "blip",
+        "caption_prompt": "Question: List the main visible objects and scene concepts in this image as short comma-separated tags. Use concrete nouns or short noun phrases only and do not explain. Answer:",
+        "candidate_limit": "12",
+        "top_k": "5",
+        "threshold": "0.0",
+        "timeoutMs": "120000",
+        "pollingIntervalMs": "1000",
+        "retries": "3"
+      }
+    }
   },
   "operations": {
     "enumerator": {
@@ -47,32 +55,46 @@
     },
     "decoder": {
       "operator": "decoder",
-      "inputs": ["enumerator"]
+      "inputs": [
+        "enumerator"
+      ]
     },
     "middle": {
       "operator": "aggregator",
-      "inputs": ["decoder"]
+      "inputs": [
+        "decoder"
+      ]
     },
     "persist": {
       "operator": "persister",
-      "inputs": ["middle"]
+      "inputs": [
+        "middle"
+      ]
     },
     "thumbnail": {
       "operator": "thumbnail",
-      "inputs": ["persist"]
+      "inputs": [
+        "persist"
+      ]
     },
     "averagecolor": {
       "operator": "averagecolor",
-      "inputs": ["thumbnail"]
+      "inputs": [
+        "thumbnail"
+      ]
     },
     "source": {
       "operator": "source",
-      "inputs": ["tags"]
+      "inputs": [
+        "tags"
+      ]
     },
     "tags": {
-     "operator": "tags",
-     "inputs": ["averagecolor"]
-}
+      "operator": "tags",
+      "inputs": [
+        "averagecolor"
+      ]
+    }
   },
   "output": [
     "source"
