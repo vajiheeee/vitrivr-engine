@@ -39,7 +39,7 @@
       "parameters": {
         "caption_host": "http://localhost:5001",
         "caption_model": "blip",
-        "caption_prompt": "Question: What is depicted in this image? Answer:",
+        "caption_prompt": "a photo of",
         "candidate_limit": "12",
         "top_k": "5",
         "threshold": "0.0",
