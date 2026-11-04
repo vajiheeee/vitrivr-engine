@@ -38,15 +38,15 @@
     "tags": {
       "field": "tags",
       "parameters": {
-        "caption_host": "http://localhost:5002",
-        "caption_model": "blip2",
+        "caption_host": "http://localhost:5003",
+        "caption_model": "vit_gpt2",
         "candidate_limit": "12",
         "top_k": "5",
         "threshold": "0.0",
-        "timeoutMs": "900000",
+        "timeoutMs": "300000",
         "pollingIntervalMs": "1000",
         "retries": "1",
-        "caption_prompts": "Describe the image briefly:",
+        "caption_prompts": "<empty>",
         "caption_fallback_host": "http://localhost:5001"
       }
     }
