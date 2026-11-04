@@ -10,6 +10,10 @@ function Section([string]$Text) {
     Write-Host "=== $Text ==="
 }
 
+function Get-DockerLogs([string]$Name, [int]$Tail = 120) {
+    & cmd.exe /d /c "docker logs --tail $Tail $Name 2>&1"
+}
+
 function Require-Container([string]$Name) {
     $exists = docker ps -a --format "{{.Names}}" | Where-Object { $_ -eq $Name }
     if (-not $exists) {
@@ -122,7 +126,7 @@ for ($i = 0; $i -lt 600; $i++) {
 }
 
 Section "Caption model actually used"
-$captionEvidence = docker logs --tail 300 fes-caption 2>&1 | Select-String -Pattern "blip2|conditional-image-captioning/blip2" | Select-Object -Last 20
+$captionEvidence = Get-DockerLogs "fes-caption" 300 | Select-String -Pattern "blip2|conditional-image-captioning/blip2" | Select-Object -Last 20
 
 if ($captionEvidence) {
     $captionEvidence | ForEach-Object { Write-Host $_.Line }
@@ -142,10 +146,10 @@ if (-not $finished) {
     Get-Content $stderr -Tail 120 -ErrorAction SilentlyContinue
 
     Section "Caption FES diagnostics"
-    docker logs --tail 120 fes-caption
+    Get-DockerLogs "fes-caption" 120
 
     Section "OpenCLIP FES diagnostics"
-    docker logs --tail 120 fes-openclip
+    Get-DockerLogs "fes-openclip" 120
 
     throw "Dynamic tagging produced no persisted tags. Diagnostics are printed above."
 }
