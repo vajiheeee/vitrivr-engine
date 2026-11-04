@@ -32,6 +32,15 @@ class ImageClassification : ExternalFesAnalyser<ImageContent, LabelDescriptor>()
         const val CLASSES_PARAMETER_NAME = "classes"
         const val THRESHOLD_PARAMETER_NAME = "threshold"
         const val TOPK_PARAMETER_NAME = "top_k"
+        const val CAPTION_HOST_PARAMETER_NAME = "caption_host"
+        const val CAPTION_MODEL_PARAMETER_NAME = "caption_model"
+        const val CAPTION_PROMPT_PARAMETER_NAME = "caption_prompt"
+        const val CANDIDATE_LIMIT_PARAMETER_NAME = "candidate_limit"
+
+        const val CAPTION_HOST_PARAMETER_DEFAULT = "http://localhost:5001"
+        const val CAPTION_MODEL_PARAMETER_DEFAULT = "blip"
+        const val CANDIDATE_LIMIT_PARAMETER_DEFAULT = 12
+        const val CAPTION_PROMPT_PARAMETER_DEFAULT = "Question: List the main visible objects and scene concepts in this image as short comma-separated tags. Use concrete nouns or short noun phrases only and do not explain. Answer:"
     }
 
     override val contentClasses = setOf(ImageContent::class, TextContent::class)
